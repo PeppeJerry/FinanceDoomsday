@@ -7,8 +7,8 @@ import numpy as np
 
 # This function converts a date from format "YYYY-MM-DD" to its timestamp equivalent
 def date2Timestamp(data):
-    for pos in range(len(data)):
-        data[pos]['Date'] = data[pos]['Date'].apply(
+    for i in range(len(data)):
+        data[i]['Date'] = data[i]['Date'].apply(
             lambda x: time.mktime(datetime.datetime.strptime(x, "%Y-%m-%d").timetuple())
         )
     return data
@@ -16,13 +16,14 @@ def date2Timestamp(data):
 
 # min-max normalization
 def minmax_norm(data):
-    global n_min, n_max
     n_array = np.empty([len(data), data[0].shape[0], data[0].shape[1] - 1])  # "-1" because we won't consider "Date"
+    n_min = np.empty([len(data), data[0].shape[1] - 1])
+    n_max = np.empty([len(data), data[0].shape[1] - 1])
     dates = np.empty([len(data), data[0].shape[0]])
     columns = list(data[0].columns.values)
-    for pos in range(len(data)):
-        n_array[pos, :, :] = data[pos].drop(columns=["Date"]).values
-        dates[pos, :] = data[pos]['Date'].values
+    for i in range(len(data)):
+        n_array[i, :, :] = data[i].drop(columns=["Date"]).values
+        dates[i, :] = data[i]['Date'].values
 
         # Generating min and max matrix, each row[i] represents min and max values for the dataset "i"
         n_min = np.min(n_array, axis=1)
@@ -31,29 +32,32 @@ def minmax_norm(data):
     # Data is not necessary from this point on
     del data
 
-    # Generating min and max array among all datasets
-    n_min = np.min(n_min, axis=0)
-    n_max = np.max(n_max, axis=0)
-
     # Applying min-max
-    for pos in range(n_array.shape[0]):
-        n_array[pos, :, :] = (n_array[pos, :, :] - n_min) / (n_max - n_min)
+    for i in range(n_array.shape[0]):
+        n_array[i, :, :] = (n_array[i, :, :] - n_min[i, :]) / (n_max[i, :] - n_min[i, :])
 
     # Generating new DataFrames with normalized data
     n_array = np.dstack((dates, n_array))
     data = []
-    for pos in range(n_array.shape[0]):
-        data.append(pd.DataFrame(n_array[pos, :, :], columns=columns))
+    for i in range(n_array.shape[0]):
+        data.append(pd.DataFrame(n_array[i, :, :], columns=columns))
     del n_array
 
     # Keeping information about what kind of normalization and all parameters involved
     # Since prediction y# is normalized, thanks to these data it will be denormalized in y_ as it follows:
     # y_ = y# * (max - min) + min
+    info_min = []
+    info_max = []
+    for a_min,a_max in zip(n_min, n_max):
+        info_min.append(list(a_min))
+        info_max.append(list(a_max))
+    del n_min, n_max
+
     with open("normalization.json", "w") as outfile:
         json.dump({
             'norm': 'minmax',
-            'min': list(n_min),
-            'max': list(n_max)
+            'min': info_min,
+            'max': info_max
         }, outfile, indent=4)
     return data
 
