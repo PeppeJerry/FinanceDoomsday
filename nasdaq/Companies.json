@@ -1,0 +1,17 @@
+{
+    "_comment1":"Used for one-hot encoding",
+    "encoding":{
+        "0":"MSFT",
+        "1":"AAPL",
+        "2":"GOOG",
+        "3":"AMZN"
+    },
+
+    "_comment2":"(Nasdaq code - Company name) association",
+    "vocabulary":{
+        "MSFT": "Microsoft",
+        "AAPL": "Apple",
+        "GOOG": "Google",
+        "AMZN": "Amazon"
+    }
+  }
