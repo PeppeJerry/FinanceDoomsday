@@ -57,6 +57,7 @@ def minmax_norm(data):
         }, outfile, indent=4)
     return data
 
+
 # One-hot encoding for each company
 def one_hotEncoding(data, num):
     for i in range(num):
