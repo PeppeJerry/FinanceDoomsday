@@ -85,7 +85,7 @@ for i in range(c_num):
 
 datasets = date2Timestamp(data=datasets)
 datasets = minmax_norm(data=datasets)
-datasets = one_hotEncoding(data=datasets, num=c_num)
+# datasets = one_hotEncoding(data=datasets, num=c_num)
 
 # Generating new CSV files (These are the one that will be used)
 for i in c['encoding']:
