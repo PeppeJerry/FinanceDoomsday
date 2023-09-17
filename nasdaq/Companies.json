@@ -1,13 +1,19 @@
 {
-    "_comment1":"Used for one-hot encoding",
-    "encoding":{
+    "general":{
         "0":"MSFT",
         "1":"AAPL",
         "2":"GOOG",
         "3":"AMZN"
     },
 
-    "_comment2":"(Nasdaq code - Company name) association",
+    "10Y_gap":{
+        "0":"MSFT_10Y",
+        "1":"AAPL_10Y",
+        "2":"GOOG_10Y",
+        "3":"AMZN_10Y"
+    },
+
+    "_comment1":"(Nasdaq code - Company name) association",
     "vocabulary":{
         "MSFT": "Microsoft",
         "AAPL": "Apple",
