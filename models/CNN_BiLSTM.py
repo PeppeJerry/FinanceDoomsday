@@ -102,7 +102,7 @@ class CNNBiLSTM(nn.Module):
     def set_company(self, company):
         self.specific = company
 
-    def train_model(self, train_loader, x_valid, Y_valid, epochs=1000, lr=0.001, lambd=0.02,
+    def train_model(self, train_loader, x_valid, Y_valid, epochs=400, lr=0.001, lambd=0.02,
                     path="models/CNN_BiLSTM_Weights/", extra=""):
         # Defining if CUDA is available for processing, use CPU otherwise
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -155,8 +155,10 @@ class CNNBiLSTM(nn.Module):
             # 2) Loss will not consider all variables since we are interested in (Open, Close, High, Low)
             # These variables will always be placed in the first 4 places so it possible to exploit this information
             # NOTE: the model is still taking variables such as "Volume" as input
-            loss = criterion(output[:, self.out_steps, :4], Y_batch[:, self.out_steps, :4])
-            #loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
+            # loss = criterion(output[:, self.out_steps, :4], Y_batch[:, self.out_steps, :4])
+
+            # Normal loss on (Open, Close, High, Low)
+            loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
 
             losses.append(loss.item())
             if loss.item() < loss_counter:
