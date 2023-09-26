@@ -14,10 +14,11 @@ def date2Timestamp(data):
 
 
 # min-max normalization
-def minmax_norm(data, name):
+def minmax_norm(data, data_name):
     columns = list(data.columns.values)
     n_array = data.drop(columns=["Date"]).values
     dates = data['Date'].values
+    del data
 
     # Generating min and max arrays
     n_min = np.min(n_array, axis=0)
@@ -35,7 +36,7 @@ def minmax_norm(data, name):
     # Since prediction y# is normalized, thanks to these data it will be denormalized in y_ as it follows:
     # y_ = y# * (max - min) + min
 
-    with open("normalization/" + name + ".json", "w") as outfile:
+    with open("normalization/" + data_name + ".json", "w") as outfile:
         json.dump({'norm': 'minmax', 'min': list(n_min), 'max': list(n_max)}, outfile, indent=4)
     return data
 
@@ -47,26 +48,58 @@ def new_features(data):
     return data
 
 
-set_to_normalize = "general"
+###########################
+# This is an example code #
+###########################
+
+# Selecting the block of datasets that will be normalized together
+block_target = "1Y_target"
+
 # Reading JSON file for company information
 with open('Companies.json', 'r') as file:
     c = json.load(file)
-c_num = len(c[set_to_normalize])
+c_num = len(c[block_target])
+c_years = c[block_target + "_years"]
+gap = 2
 
 # Loading our datasets
 datasets = []
 names = []
 for i in range(c_num):
-    names.append(c[set_to_normalize][str(i)])
+    names.append(c[block_target][str(i)])
     temp = "raw_data/" + names[i] + ".csv"
-    datasets.append(pd.read_csv(temp).drop(columns=['Adj Close']))  # Not relevant information
-    # datasets.append(pd.read_csv(temp).drop(columns=["Volume"]))  # Volume does not need to be predicted
+    datasets.append(pd.read_csv(temp).drop(columns=['Adj Close', 'Volume']).sort_values(by=['Date']))
+c[block_target + "_normalized"] = {}
 
+# pre-process stage
 for i in range(len(datasets)):
     datasets[i] = date2Timestamp(datasets[i])
     datasets[i] = new_features(datasets[i])
-    datasets[i] = minmax_norm(datasets[i], names[i])
 
-# Generating new CSV files (These are the one that will be used)
-for i in c[set_to_normalize]:
-    datasets[int(i)].to_csv(c[set_to_normalize][i] + ".csv", index=False)
+    # Setting 1Y window size
+    set_len = len(datasets[i])
+    window_len = int(set_len / c_years)
+
+    # If c_years == 1 then with this check will be normalized entirely without dividing it
+    if c_years == 1: c_years = 2
+
+    for j in range(c_years - 1):
+        a = j * window_len
+
+        # Last iteration will consider all the remaining samples ( 2 * window_len + residual samples )
+        if j + 1 == c_years - 1:
+            b = set_len
+        else:
+            b = (gap + j) * window_len
+
+        # Temporary dataframe to store 2 years worth of samples
+        # Each iteration will slide 1 year at a time creating overlaps of 1 year among normalizations
+        temp = datasets[i][a:b].copy()
+        temp = minmax_norm(temp, names[i] + "_" + str(j))
+        name = names[i] + "_" + str(j)
+        temp.to_csv("processed_data/" + name + ".csv", index=False)
+        c[block_target + "_normalized"][str(100 * i + j)] = name
+
+# Update "FinanceDoomsday/nasdaq/Companies.json" with new blocks of data
+with open("Companies.json", "w") as outfile:
+    json.dump(c, outfile, indent=4)
