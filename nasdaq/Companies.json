@@ -1,23 +1,187 @@
 {
-    "general":{
-        "0":"MSFT",
-        "1":"AAPL",
-        "2":"GOOG",
-        "3":"AMZN"
+    "extra_suffix": "",
+    "extra": {
+        "0": "ORCL"
     },
-
-    "10Y_gap":{
-        "0":"MSFT_10Y",
-        "1":"AAPL_10Y",
-        "2":"GOOG_10Y",
-        "3":"AMZN_10Y"
+    "1Y_target_suffix": "_1Y",
+    "1Y_target_years": 1,
+    "1Y_target": {
+        "0": "MSFT_1Y",
+        "1": "AAPL_1Y",
+        "2": "GOOG_1Y",
+        "3": "AMZN_1Y"
     },
-
-    "_comment1":"(Nasdaq code - Company name) association",
-    "vocabulary":{
-        "MSFT": "Microsoft",
-        "AAPL": "Apple",
-        "GOOG": "Google",
-        "AMZN": "Amazon"
+    "10Y_suffix": "_10Y",
+    "10Y_years": 10,
+    "10Y": {
+        "0": "MSFT_10Y",
+        "1": "AAPL_10Y",
+        "2": "GOOG_10Y",
+        "3": "AMZN_10Y",
+        "4": "SONY_10Y",
+        "5": "NVDA_10Y",
+        "6": "EBAY_10Y",
+        "7": "META_10Y"
+    },
+    "10Y_target_suffix": "_10Y",
+    "10Y_target_years": 10,
+    "10Y_target": {
+        "0": "MSFT_10Y",
+        "1": "AAPL_10Y",
+        "2": "GOOG_10Y",
+        "3": "AMZN_10Y"
+    },
+    "_comment1": "Companies information",
+    "vocabulary": {
+        "MSFT": [
+            0,
+            "Microsoft"
+        ],
+        "AAPL": [
+            1,
+            "Apple"
+        ],
+        "GOOG": [
+            2,
+            "Google"
+        ],
+        "AMZN": [
+            3,
+            "Amazon"
+        ],
+        "SONY": [
+            4,
+            "Sony"
+        ],
+        "NVDA": [
+            5,
+            "Nvidia"
+        ],
+        "EBAY": [
+            6,
+            "Ebay"
+        ],
+        "META": [
+            7,
+            "Meta"
+        ]
+    },
+    "10Y_target_normalized": {
+        "0": "MSFT_10Y_0",
+        "1": "MSFT_10Y_1",
+        "2": "MSFT_10Y_2",
+        "3": "MSFT_10Y_3",
+        "4": "MSFT_10Y_4",
+        "5": "MSFT_10Y_5",
+        "6": "MSFT_10Y_6",
+        "7": "MSFT_10Y_7",
+        "8": "MSFT_10Y_8",
+        "100": "AAPL_10Y_0",
+        "101": "AAPL_10Y_1",
+        "102": "AAPL_10Y_2",
+        "103": "AAPL_10Y_3",
+        "104": "AAPL_10Y_4",
+        "105": "AAPL_10Y_5",
+        "106": "AAPL_10Y_6",
+        "107": "AAPL_10Y_7",
+        "108": "AAPL_10Y_8",
+        "200": "GOOG_10Y_0",
+        "201": "GOOG_10Y_1",
+        "202": "GOOG_10Y_2",
+        "203": "GOOG_10Y_3",
+        "204": "GOOG_10Y_4",
+        "205": "GOOG_10Y_5",
+        "206": "GOOG_10Y_6",
+        "207": "GOOG_10Y_7",
+        "208": "GOOG_10Y_8",
+        "300": "AMZN_10Y_0",
+        "301": "AMZN_10Y_1",
+        "302": "AMZN_10Y_2",
+        "303": "AMZN_10Y_3",
+        "304": "AMZN_10Y_4",
+        "305": "AMZN_10Y_5",
+        "306": "AMZN_10Y_6",
+        "307": "AMZN_10Y_7",
+        "308": "AMZN_10Y_8"
+    },
+    "1Y_target_normalized": {
+        "0": "MSFT_1Y_0",
+        "100": "AAPL_1Y_0",
+        "200": "GOOG_1Y_0",
+        "300": "AMZN_1Y_0"
+    },
+    "10Y_normalized": {
+        "0": "MSFT_10Y_0",
+        "1": "MSFT_10Y_1",
+        "2": "MSFT_10Y_2",
+        "3": "MSFT_10Y_3",
+        "4": "MSFT_10Y_4",
+        "5": "MSFT_10Y_5",
+        "6": "MSFT_10Y_6",
+        "7": "MSFT_10Y_7",
+        "8": "MSFT_10Y_8",
+        "100": "AAPL_10Y_0",
+        "101": "AAPL_10Y_1",
+        "102": "AAPL_10Y_2",
+        "103": "AAPL_10Y_3",
+        "104": "AAPL_10Y_4",
+        "105": "AAPL_10Y_5",
+        "106": "AAPL_10Y_6",
+        "107": "AAPL_10Y_7",
+        "108": "AAPL_10Y_8",
+        "200": "GOOG_10Y_0",
+        "201": "GOOG_10Y_1",
+        "202": "GOOG_10Y_2",
+        "203": "GOOG_10Y_3",
+        "204": "GOOG_10Y_4",
+        "205": "GOOG_10Y_5",
+        "206": "GOOG_10Y_6",
+        "207": "GOOG_10Y_7",
+        "208": "GOOG_10Y_8",
+        "300": "AMZN_10Y_0",
+        "301": "AMZN_10Y_1",
+        "302": "AMZN_10Y_2",
+        "303": "AMZN_10Y_3",
+        "304": "AMZN_10Y_4",
+        "305": "AMZN_10Y_5",
+        "306": "AMZN_10Y_6",
+        "307": "AMZN_10Y_7",
+        "308": "AMZN_10Y_8",
+        "400": "SONY_10Y_0",
+        "401": "SONY_10Y_1",
+        "402": "SONY_10Y_2",
+        "403": "SONY_10Y_3",
+        "404": "SONY_10Y_4",
+        "405": "SONY_10Y_5",
+        "406": "SONY_10Y_6",
+        "407": "SONY_10Y_7",
+        "408": "SONY_10Y_8",
+        "500": "NVDA_10Y_0",
+        "501": "NVDA_10Y_1",
+        "502": "NVDA_10Y_2",
+        "503": "NVDA_10Y_3",
+        "504": "NVDA_10Y_4",
+        "505": "NVDA_10Y_5",
+        "506": "NVDA_10Y_6",
+        "507": "NVDA_10Y_7",
+        "508": "NVDA_10Y_8",
+        "600": "EBAY_10Y_0",
+        "601": "EBAY_10Y_1",
+        "602": "EBAY_10Y_2",
+        "603": "EBAY_10Y_3",
+        "604": "EBAY_10Y_4",
+        "605": "EBAY_10Y_5",
+        "606": "EBAY_10Y_6",
+        "607": "EBAY_10Y_7",
+        "608": "EBAY_10Y_8",
+        "700": "META_10Y_0",
+        "701": "META_10Y_1",
+        "702": "META_10Y_2",
+        "703": "META_10Y_3",
+        "704": "META_10Y_4",
+        "705": "META_10Y_5",
+        "706": "META_10Y_6",
+        "707": "META_10Y_7",
+        "708": "META_10Y_8"
     }
-  }
+}
