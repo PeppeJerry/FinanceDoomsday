@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-def FC_weigth_init(module, sequence_length):
+def FC_weight_init(module, sequence_length):
     # Evaluating fan-in (n_in) and fan-out (n_out)
     n_in = sequence_length * module.in_features
     n_out = sequence_length * module.out_features
@@ -15,7 +15,7 @@ def FC_weigth_init(module, sequence_length):
     return module
 
 
-def LSTM_weigth_init(module):
+def LSTM_weight_init(module):
     for name, param in module.named_parameters():
         if "weight" in name:
             nn.init.xavier_normal_(param)
@@ -47,3 +47,12 @@ def CNN_weight_init(module, sequence_length):
 
     # Returning the new sequence length after applying convolution
     return temp_length, module
+
+
+def enc_dec_weight_init(module):
+    for name, param in module.named_parameters():
+        # By "norm" we include layer norm layers inside encoder and decoder
+        # They are not meant to be normalized this way
+        if "weight" in name and "norm" not in name:
+            nn.init.xavier_normal_(param)
+    return module
