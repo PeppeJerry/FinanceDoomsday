@@ -4,11 +4,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from models.xavier import CNN_weight_init, FC_weigth_init, LSTM_weigth_init
+from models.xavier import CNN_weight_init, FC_weight_init, LSTM_weight_init
 
 
 class CNNBiLSTM(nn.Module):
-    def __init__(self, inputDim, out_target, bi_lstm_layers=2, CNN_out=256, dropout=0, dropout_input=0,
+    def __init__(self, inputDim, out_target=None, bi_lstm_layers=2, CNN_out=256, dropout=0, dropout_input=0,
                  specific='general', sequence_length=128, SEED=-1, extra="", lr=0.1, lmd=0.001, outLen=14):
         super(CNNBiLSTM, self).__init__()
         if SEED == -1:
@@ -22,7 +22,10 @@ class CNNBiLSTM(nn.Module):
         self.specific = specific
 
         # Defining target time-steps
-        self.out_steps = out_target
+        if out_target is None:
+            self.out_steps = [0, 6, 13]
+        else:
+            self.out_steps = out_target
         self.outLen = outLen
 
         # CNN Layers to discover patterns in our sequence
@@ -81,7 +84,7 @@ class CNNBiLSTM(nn.Module):
             batch_first=True
         )
         # Weights initialization of bi_lstm
-        self.bi_lstm = LSTM_weigth_init(self.bi_lstm)
+        self.bi_lstm = LSTM_weight_init(self.bi_lstm)
 
         # Layer Normalization 2
         self.layer_norm2 = nn.LayerNorm(normalized_shape=2 * CNN_out)
@@ -89,7 +92,7 @@ class CNNBiLSTM(nn.Module):
         # Fully connected
         self.fc = nn.Linear(2 * CNN_out, 4)  # Double because it has forward and backward hidden states
         # Volatility & Price change won't be considered
-        self.fc = FC_weigth_init(self.fc, temp_length)  # Weights initialization of fc
+        self.fc = FC_weight_init(self.fc, temp_length)  # Weights initialization of fc
 
         #  Dropout to reduce overfitting
         self.dropout = nn.Dropout(dropout)
@@ -109,6 +112,7 @@ class CNNBiLSTM(nn.Module):
                 temp_1 = x_temp[:, 1:, :]
                 temp_2 = y[:, :i, :]
                 x = torch.cat((temp_1, temp_2), dim=1)
+                del temp_1, temp_2
 
             x = self.dropout_input(x)
 
@@ -131,17 +135,15 @@ class CNNBiLSTM(nn.Module):
             else:
                 x, (hn, cn) = self.bi_lstm(x, (hn, cn))
 
+            # Output concatenation
             x = self.layer_norm2(x)
-
             x = self.dropout(x)
-
             x = self.fc(x)
-
             y[:, i, :4] = x[:, 0, :4]
         return y
 
     def train_model(self, train_loader, x_valid, Y_valid, epochs=2000,
-                    path="models/CNN_BiLSTM_Weights/", extra="", custom_loss=False, threshold=100):
+                    path="models/CNN_BiLSTM_Weights/", extra="", threshold=100):
         # Defining if CUDA is available for processing, use CPU otherwise
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(device)
@@ -188,19 +190,8 @@ class CNNBiLSTM(nn.Module):
 
             output = self(x_batch)
 
-            if custom_loss:
-                # Personalized loss function
-
-                # 1) Loss will be evaluated for indexes self.out_steps
-                # if self.out_steps = [0,6,13] is the same as increasing predict accuracies on 1 day, 1 week, 2 weeks
-
-                # 2) Loss will not consider all variables since we are interested in (Open, Close, High, Low)
-                # These variables will always be placed in the first 4 places so it possible to exploit this information
-                # NOTE: the model is still taking variables such as "Volume" as input
-                loss = criterion(output[:, self.out_steps, :4], Y_batch[:, self.out_steps, :4])
-            else:
-                # Standard loss by considering just the first 4 features (Open, Close, High, Low) for better accuracy
-                loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
+            # Standard loss by just the first 4 features are considered (Open, Close, High, Low) for better accuracy
+            loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
 
             losses.append(loss.item())
             if loss.item() < loss_counter:
@@ -211,7 +202,6 @@ class CNNBiLSTM(nn.Module):
             with torch.no_grad():
                 output = self(x_valid)
                 loss_val = criterion(output[:, :, :4], Y_valid[:, :, :4])
-                # loss_val = criterion(output[:, self.out_steps, :4], Y_valid[:, self.out_steps, :4])
                 losses_val.append(loss_val.item())
 
                 # Saving best parameters based on validation set
@@ -225,6 +215,8 @@ class CNNBiLSTM(nn.Module):
             loss.backward()
             optimizer.step()
 
+            # Decreasing Learning Rate if the model is not improving after "threshold" iterations
+            # NOTE: "threshold" must be carefully chosen
             if LowLR >= threshold:
                 lr = lr / 2
                 optimizer = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=self.lmd)

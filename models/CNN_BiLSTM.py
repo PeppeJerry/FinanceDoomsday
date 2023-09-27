@@ -2,11 +2,11 @@ import json
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from models.xavier import CNN_weight_init, FC_weigth_init, LSTM_weigth_init
+from models.xavier import CNN_weight_init, FC_weight_init, LSTM_weight_init
 
 
 class CNNBiLSTM(nn.Module):
-    def __init__(self, inputDim, out_target, bi_lstm_layers=2, CNN_out=256, dropout=0.5, dropout_input=0,
+    def __init__(self, inputDim, out_target=None, bi_lstm_layers=2, CNN_out=256, dropout=0.5, dropout_input=0,
                  specific='general', sequence_length=128, SEED=-1, extra="", lr=0.1, lmd=0.001):
         super(CNNBiLSTM, self).__init__()
 
@@ -24,7 +24,10 @@ class CNNBiLSTM(nn.Module):
         self.specific = specific
 
         # Defining target time-steps
-        self.out_steps = out_target
+        if out_target is None:
+            self.out_steps = [0, 6, 13]
+        else:
+            self.out_steps = out_target
 
         # CNN Layers to discover patterns in our sequence
         # First CNN Block
@@ -68,7 +71,7 @@ class CNNBiLSTM(nn.Module):
             num_layers=bi_lstm_layers,
             batch_first=True
         )
-        self.bi_lstm = LSTM_weigth_init(self.bi_lstm)
+        self.bi_lstm = LSTM_weight_init(self.bi_lstm)
 
         # Layer Normalization 2
         self.layer_norm2 = nn.LayerNorm(normalized_shape=2 * CNN_out)
@@ -76,7 +79,7 @@ class CNNBiLSTM(nn.Module):
         # Fully connected
         self.fc = nn.Linear(2 * CNN_out, 4)  # Double because it has forward and backward hidden states
         # Volatility & Price change won't be considered
-        self.fc = FC_weigth_init(self.fc, temp_length)  # Weights initialization of fc
+        self.fc = FC_weight_init(self.fc, temp_length)  # Weights initialization of fc
 
         #  Dropout to reduce overfitting
         self.dropout = nn.Dropout(dropout)
@@ -151,19 +154,8 @@ class CNNBiLSTM(nn.Module):
 
             output = self(x_batch)
 
-            if custom_loss:
-                # Personalized loss function
-
-                # 1) Loss will be evaluated for indexes self.out_steps
-                # if self.out_steps = [0,6,13] is the same as increasing predict accuracies on 1 day, 1 week, 2 weeks
-
-                # 2) Loss will not consider all variables since we are interested in (Open, Close, High, Low)
-                # These variables will always be placed in the first 4 places so it possible to exploit this information
-                # NOTE: the model is still taking variables such as "Volume" as input
-                loss = criterion(output[:, self.out_steps, :4], Y_batch[:, self.out_steps, :4])
-            else:
-                # Standard loss by considering just the first 4 features (Open, Close, High, Low) for better accuracy
-                loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
+            # Standard loss by just the first 4 features are considered (Open, Close, High, Low) for better accuracy
+            loss = criterion(output[:, :, :4], Y_batch[:, :, :4])
 
             losses.append(loss.item())
             if loss.item() < loss_counter:
@@ -188,6 +180,7 @@ class CNNBiLSTM(nn.Module):
             optimizer.step()
 
             # Decreasing Learning Rate if the model is not improving after "threshold" iterations
+            # NOTE: "threshold" must be carefully chosen
             if LowLR >= threshold:
                 LowLR = 0
                 print("Lowering lr [{} -> {}]".format(lr, lr / 10))
