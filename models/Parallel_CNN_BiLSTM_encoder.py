@@ -1,20 +1,15 @@
 import json
-
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from models.xavier import CNN_weight_init, FC_weight_init, LSTM_weight_init
+from models.xavier import CNN_weight_init, FC_weight_init, LSTM_weight_init, enc_dec_weight_init
 
 
-class CNNBiLSTM(nn.Module):
-    def __init__(self, inputDim, out_target=None, bi_lstm_layers=2, CNN_out=32, dropout=0, dropout_input=0, kernel=5,
-                 specific='general', sequence_length=32, SEED=-1, extra="", lr=0.1, lmd=0.001, out_len=7, outputDim=4,
-                 noise=None, auto_regressive=None, path=""):
-        super(CNNBiLSTM, self).__init__()
-        if SEED == -1:
-            SEED = torch.randint(1, 10000000000000, (1,)).item()
-        torch.manual_seed(SEED)
+class Parallel_CNN_BiLSTM_encoder(nn.Module):
+    def __init__(self, inputDim, nhead=8, dropout=0.5, dropout_input=0.01, sequence_length=32,
+                 specific='general', SEED=-1, out_target=None, noise=0.001, extra='', lr=0.01, lmd=0, CNN_out=32,
+                 bi_lstm_layers=2, kernel=5, outputDim=4, out_len=7, auto_regressive=None, path=""):
+        super(Parallel_CNN_BiLSTM_encoder, self).__init__()
 
         ######################
         # Model's parameters #
@@ -24,9 +19,12 @@ class CNNBiLSTM(nn.Module):
         self.lmd = lmd
         self.drop_prop = dropout
         self.drop_propIN = dropout_input
+        self.noise = noise
 
-        self.inputDim = inputDim
         self.outputDim = outputDim
+        self.inputDim = inputDim
+        self.out_len = out_len
+        self.inputLen = sequence_length
 
         self.path = path
         self.specific = specific
@@ -37,17 +35,18 @@ class CNNBiLSTM(nn.Module):
             self.out_steps = [0, 1, 6]
         else:
             self.out_steps = out_target
-        self.out_len = out_len
 
-        #############################
-        # Convolutional layer Stack #
-        #############################
+        if SEED == -1:
+            SEED = torch.randint(1, 10000000000000, (1,)).item()
+        torch.manual_seed(SEED)
 
-        self.layer_norm0 = nn.LayerNorm(normalized_shape=inputDim)
+        ################################
+        # Convolutional Neural Network #
+        ################################
 
-        padding = int((kernel - 1) / 2)
-
+        # CNN Layers to discover patterns in our sequence
         # First CNN Block
+        padding = int((kernel - 1) / 2)  # 0 padding strategy
         self.cnn1 = nn.Sequential(
             nn.Conv1d(in_channels=inputDim, out_channels=8, kernel_size=kernel, padding=padding, stride=1),
             nn.ReLU(),
@@ -69,38 +68,61 @@ class CNNBiLSTM(nn.Module):
             nn.ReLU(),
         )
 
-        # Layer Normalization 1
-        self.layer_norm1 = nn.LayerNorm(normalized_shape=CNN_out)
+        self.layer_norm_cnn = nn.LayerNorm(normalized_shape=CNN_out)
 
-        ################
-        # BiLSTM layer #
-        ################
+        ################################
+        #         Encoder stack        #
+        ################################
+
+        # Embedding layer (Optional)
+        # self.fc_encoder = nn.Sequential(
+        #     nn.Linear(CNN_out, d_model),
+        #     nn.ReLU()
+        #)
+
+        d_model = CNN_out
+
+        ffnn_dim = 2 * d_model
+
+        self.encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model, nhead, ffnn_dim, self.drop_prop, batch_first=True), 3)
+
+        ################################
+        #         BiLSTM cell          #
+        ################################
 
         BiLSTM = True
-        # Bi-LSTM
-        # there are two hidden state arrays equally long CNN_out, one moving forward and the other backward
         self.bi_lstm = nn.LSTM(
-            bidirectional=True,  # Bi-LSTM setting
+            bidirectional=BiLSTM,  # Bi-LSTM setting
             input_size=CNN_out,
             hidden_size=CNN_out,
             num_layers=bi_lstm_layers,
             batch_first=True
         )
-
         LSTM_shape = 2 * CNN_out if BiLSTM else CNN_out
+        self.layer_norm_LSTM = nn.LayerNorm(normalized_shape=LSTM_shape)
 
-        ################
-        # Output layer #
-        ################
+        ################################
+        #        Output layer          #
+        ################################
 
-        # Fully connected
-        self.fc = nn.Linear(LSTM_shape, outputDim)
+        self.final_shape = LSTM_shape + d_model
+
+        self.fc_out = nn.Sequential(
+            nn.Linear(self.final_shape, 64),
+            nn.ReLU(),
+            nn.Linear(64, outputDim),
+        )
+
+        # Dropout to improve generalization
+        self.dropout = nn.Dropout(self.drop_prop)
+        self.dropout_input = nn.Dropout(self.drop_propIN)
 
         #########################
         # Xavier initialization #
         #########################
 
-        # Weights initialization
+        # CNN initialization
         temp_length = sequence_length
         for CNN in [self.cnn1, self.cnn2, self.cnn3]:
             for module in CNN:
@@ -108,22 +130,24 @@ class CNNBiLSTM(nn.Module):
                     continue
                 temp_length, module = CNN_weight_init(module, temp_length)
 
-        # Weights initialization of bi_lstm
-        self.bi_lstm = LSTM_weight_init(self.bi_lstm)
+        # Feed Forward Initialization
+        for FC in [self.fc_out]:
+            for module in FC:
+                if not (isinstance(module, nn.Linear)):
+                    continue
+                module = FC_weight_init(module, temp_length)
 
-        # Weights initialization of fc
-        self.fc = FC_weight_init(self.fc, temp_length)
+        # Encoder initialization
+        self.encoder = enc_dec_weight_init(self.encoder)
 
-        #  Dropout to reduce overfitting for neurons and input
-        self.dropout = nn.Dropout(dropout)
-        self.dropout_input = nn.Dropout(dropout_input)
+        ############################################################
 
     def forward(self, x, Y=None, training=None):
 
         batch = x.size(0)
+        dim = x.size(2)
 
         # Input
-        # x = self.layer_norm0(x)
         x = self.dropout_input(x)
 
         # Convolutional stack
@@ -136,15 +160,19 @@ class CNNBiLSTM(nn.Module):
         # Saving it to decrease the number of operations during the autoregressive cycle
         cnn_x = x.to(x.device)
 
-        # Layer normalization & Dropout
-        x = self.layer_norm1(x)
         x = self.dropout(x)
 
-        x, _ = self.bi_lstm(x)
+        x_lstm, _ = self.bi_lstm(x)
+        x_lstm = self.layer_norm_LSTM(x_lstm)
+
+        x_encoder = self.encoder(x)
+
+        x = torch.concatenate((x_lstm, x_encoder), dim=2)
+        del x_encoder, x_lstm
 
         # Output batch with dimensionality (batch, out_len, outputDim)
         Y = torch.zeros((batch, self.out_len, self.outputDim)).to(x.device)
-        Y[:, 0, :] = self.fc(x[:, [-1], :]).squeeze()
+        Y[:, 0, :] = self.fc_out(x[:, [-1], :]).squeeze()
 
         # Autoregressive algorithm, the last output (Y[:, t, :])  will be given as input at (t+1) iteration
         # NOTE: inputDim is higher from OutputDim so remaining columns are filled with zeros
@@ -161,13 +189,19 @@ class CNNBiLSTM(nn.Module):
 
             # Concatenating previous convoluted data with the last one
             cnn_x = torch.cat((cnn_x, last), dim=1)
-            x = self.layer_norm1(cnn_x)
+            x = self.layer_norm_cnn(cnn_x)
 
             # To effectively make use of the bidirectional recurrent layer,
             # past CNN outputs will be passed with the new sample "last" to generate the new output
-            x, _ = self.bi_lstm(x)
+            x_lstm, _ = self.bi_lstm(x)
+            x_lstm = self.layer_norm_LSTM(x_lstm)
 
-            Y[:, t, :] = self.fc(x[:, [-1], :]).squeeze()
+            x_encoder = self.encoder(x)
+
+            x = torch.concatenate((x_lstm, x_encoder), dim=2)
+            del x_encoder, x_lstm
+
+            Y[:, t, :] = self.fc_out(x[:, [-1], :]).squeeze()
             last = torch.zeros((batch, 1, self.inputDim)).to(x.device)
             last[:, 0, :4] = Y[:, t, :]
 
